@@ -65,6 +65,6 @@ app.post('/projects', (req, res) => {
 });
 
 // Iniciar o servidor
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
