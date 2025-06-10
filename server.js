@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
+// Iniciar o app do Express
 const app = express();
 const port = 80;  // Porta que o servidor vai escutar
 
@@ -20,31 +21,30 @@ mongoose.connect("mongodb://127.0.0.1:27017/portfolio", {
   .then(() => console.log('Conectado ao MongoDB'))
   .catch(err => console.log('Erro ao conectar ao MongoDB:', err));
 
-// Dados fictícios de projetos
-const projects = [
-  {
-    title: "Projeto A",
-    description: "Descrição do Projeto A",
-    skills: ["React", "Node", "Express"],
-    demo: "https://demo.com/a",
-    source: "https://github.com/exemplo/projectA"
-  },
-  {
-    title: "Projeto B",
-    description: "Descrição do Projeto B",
-    skills: ["React", "MongoDB"],
-    demo: "https://demo.com/b",
-    source: "https://github.com/exemplo/projectB"
-  }
-];
+// Definir o modelo de Projeto no MongoDB
+const projectSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  skills: [String],
+  demo: String,
+  source: String
+});
 
-// Rota para retornar os projetos
-app.get('/projects', (req, res) => {
-  res.json(projects);
+// Criar o modelo a partir do esquema
+const Project = mongoose.model('Project', projectSchema);
+
+// Rota para retornar todos os projetos
+app.get('/projects', async (req, res) => {
+  try {
+    const projects = await Project.find(); // Buscar todos os projetos no banco de dados
+    res.status(200).json(projects);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar projetos" });
+  }
 });
 
 // Rota POST para adicionar um novo projeto
-app.post('/projects', (req, res) => {
+app.post('/projects', async (req, res) => {
   const { title, description, skills, demo, source } = req.body;
 
   // Validação simples
@@ -52,16 +52,61 @@ app.post('/projects', (req, res) => {
     return res.status(400).json({ error: "Todos os campos são obrigatórios" });
   }
 
-  const newProject = {
+  const newProject = new Project({
     title,
     description,
     skills,
     demo,
     source
-  };
+  });
 
-  projects.push(newProject);
-  res.status(201).json(newProject);
+  try {
+    await newProject.save();  // Salvar o projeto no MongoDB
+    res.status(201).json(newProject);  // Retornar o projeto salvo
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao adicionar o projeto" });
+  }
+});
+
+// Rota PUT para editar um projeto pelo ID
+app.put('/projects/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, description, skills, demo, source } = req.body;
+
+  try {
+    const updatedProject = await Project.findByIdAndUpdate(id, {
+      title,
+      description,
+      skills,
+      demo,
+      source
+    }, { new: true });  // Retornar o projeto atualizado
+
+    if (!updatedProject) {
+      return res.status(404).json({ error: "Projeto não encontrado" });
+    }
+
+    res.status(200).json(updatedProject);  // Retornar o projeto atualizado
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao editar o projeto" });
+  }
+});
+
+// Rota DELETE para deletar um projeto pelo ID
+app.delete('/projects/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deletedProject = await Project.findByIdAndDelete(id);
+
+    if (!deletedProject) {
+      return res.status(404).json({ error: "Projeto não encontrado" });
+    }
+
+    res.status(200).json(deletedProject);  // Retornar o projeto deletado
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao deletar o projeto" });
+  }
 });
 
 // Iniciar o servidor
